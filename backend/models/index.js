@@ -28,6 +28,7 @@ db.Sequelize = Sequelize
 db.sequelize = sequelize
 
 db.news = require('./newsModel.js')(sequelize,DataTypes)
+db.users = require('./userModel.js')(sequelize, DataTypes)
 
 db.sequelize.sync({force: false})
 .then(() => {

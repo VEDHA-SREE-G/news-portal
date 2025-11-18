@@ -1,587 +1,412 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Eye, X, Menu, User, LogOut, TrendingUp, Clock, Tag } from 'lucide-react';
+import { Trash2, Edit, Plus, X, Eye, Calendar } from 'lucide-react';
 
-const NewsPortal = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [showNewsModal, setShowNewsModal] = useState(false);
-  const [selectedNews, setSelectedNews] = useState(null);
+export default function NewsAdminPortal() {
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [editingNews, setEditingNews] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  const [users, setUsers] = useState([
-    { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
-    { id: 2, username: 'editor', password: 'editor123', role: 'editor', name: 'John Editor' }
-  ]);
-
-  const [news, setNews] = useState([
-    {
-      id: 1,
-      title: 'Revolutionary AI Breakthrough in Healthcare',
-      content: 'Scientists have developed a groundbreaking AI system that can predict diseases with 95% accuracy. This revolutionary technology analyzes medical imaging and patient data to identify early signs of various conditions, potentially saving millions of lives through early intervention.',
-      category: 'Technology',
-      author: 'Admin User',
-      date: '2025-11-10',
-      image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800',
-      views: 1234,
-      trending: true
-    },
-    {
-      id: 2,
-      title: 'Global Climate Summit Reaches Historic Agreement',
-      content: 'World leaders have signed an unprecedented climate accord committing to carbon neutrality by 2040. The agreement includes binding targets for renewable energy adoption and substantial funding for developing nations to transition to clean energy sources.',
-      category: 'Environment',
-      author: 'John Editor',
-      date: '2025-11-11',
-      image: 'https://images.unsplash.com/photo-1569163139394-de4798aa62b6?w=800',
-      views: 856,
-      trending: true
-    },
-    {
-      id: 3,
-      title: 'Stock Markets Hit All-Time High',
-      content: 'Major stock indices across the globe reached record highs today, driven by strong corporate earnings and positive economic indicators. Analysts attribute the surge to increased consumer confidence and successful vaccination campaigns worldwide.',
-      category: 'Business',
-      author: 'Admin User',
-      date: '2025-11-12',
-      image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800',
-      views: 642,
-      trending: false
-    },
-    {
-      id: 4,
-      title: 'New Archaeological Discovery Rewrites History',
-      content: 'Archaeologists have uncovered a 5,000-year-old city that challenges our understanding of ancient civilizations. The discovery includes advanced infrastructure and artifacts suggesting sophisticated urban planning far earlier than previously believed.',
-      category: 'Science',
-      author: 'John Editor',
-      date: '2025-11-13',
-      image: 'https://images.unsplash.com/photo-1551988404-caa23d4ec9c4?w=800',
-      views: 923,
-      trending: true
-    }
-  ]);
-
-  const [authForm, setAuthForm] = useState({ username: '', password: '', name: '' });
-  const [newsForm, setNewsForm] = useState({
+  const [formData, setFormData] = useState({
     title: '',
-    content: '',
-    category: 'Technology',
-    image: ''
+    category: '',
+    imageUrl: '',
+    desc: '',
+    content: ''
   });
+  const [error, setError] = useState(null);
+  const [viewingNews, setViewingNews] = useState(null);
 
-  const categories = ['All', 'Technology', 'Business', 'Environment', 'Science', 'Sports', 'Entertainment'];
+  const API_BASE = 'http://localhost:8082/api/news';
 
-  const handleLogin = () => {
-    const user = users.find(u => u.username === authForm.username && u.password === authForm.password);
-    if (user) {
-      setCurrentUser(user);
-      setIsLoggedIn(true);
-      setShowAuthModal(false);
-      setAuthForm({ username: '', password: '', name: '' });
-    } else {
-      alert('Invalid credentials!');
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  const fetchNews = async () => {
+    try {
+      setError(null);
+      const response = await fetch(`${API_BASE}/allNews`, {
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Fetched news:', data);
+      setNews(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      setError(error.message);
+      setLoading(false);
     }
   };
 
-  const handleSignUp = () => {
-    if (users.find(u => u.username === authForm.username)) {
-      alert('Username already exists!');
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.category || !formData.imageUrl || !formData.desc || !formData.content) {
+      alert('Please fill in all fields');
       return;
     }
-    const newUser = {
-      id: users.length + 1,
-      username: authForm.username,
-      password: authForm.password,
-      name: authForm.name,
-      role: 'editor'
-    };
-    setUsers([...users, newUser]);
-    alert('Registration successful! Please login.');
-    setIsSignUp(false);
-    setAuthForm({ username: '', password: '', name: '' });
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-  };
-
-  const handleAddNews = () => {
-    if (!newsForm.title || !newsForm.content || !newsForm.image) {
-      alert('Please fill all fields!');
-      return;
+    
+    try {
+      let response;
+      if (editingNews) {
+        response = await fetch(`${API_BASE}/${editingNews.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      } else {
+        response = await fetch(`${API_BASE}/addNews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Save successful:', result);
+      alert(editingNews ? 'News updated successfully!' : 'News added successfully!');
+      fetchNews();
+      closeModal();
+    } catch (error) {
+      console.error('Error saving news:', error);
+      alert('Failed to save news. Check console for details.');
     }
-    const newNews = {
-      id: news.length + 1,
-      ...newsForm,
-      author: currentUser.name,
-      date: new Date().toISOString().split('T')[0],
-      views: 0,
-      trending: false
-    };
-    setNews([newNews, ...news]);
-    setNewsForm({ title: '', content: '', category: 'Technology', image: '' });
-    setShowNewsModal(false);
-    alert('News added successfully!');
   };
 
-  const handleEditNews = () => {
-    if (!newsForm.title || !newsForm.content || !newsForm.image) {
-      alert('Please fill all fields!');
-      return;
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this news article?')) {
+      try {
+        await fetch(`${API_BASE}/${id}`, {
+          method: 'DELETE'
+        });
+        fetchNews();
+        if (viewingNews && viewingNews.id === id) {
+          setViewingNews(null);
+        }
+      } catch (error) {
+        console.error('Error deleting news:', error);
+      }
     }
-    setNews(news.map(n => n.id === editingNews.id ? { ...editingNews, ...newsForm } : n));
-    setNewsForm({ title: '', content: '', category: 'Technology', image: '' });
+  };
+
+  const openAddModal = () => {
     setEditingNews(null);
-    setShowNewsModal(false);
-    alert('News updated successfully!');
-  };
-
-  const handleDeleteNews = (id) => {
-    if (window.confirm('Are you sure you want to delete this news?')) {
-      setNews(news.filter(n => n.id !== id));
-    }
+    setFormData({
+      title: '',
+      category: '',
+      imageUrl: '',
+      desc: '',
+      content: ''
+    });
+    setShowModal(true);
   };
 
   const openEditModal = (newsItem) => {
     setEditingNews(newsItem);
-    setNewsForm({
+    setFormData({
       title: newsItem.title,
-      content: newsItem.content,
       category: newsItem.category,
-      image: newsItem.image
+      imageUrl: newsItem.imageUrl,
+      desc: newsItem.desc,
+      content: newsItem.content
     });
-    setShowNewsModal(true);
+    setShowModal(true);
   };
 
-  const filteredNews = news.filter(n => {
-    const matchesSearch = n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         n.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || n.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingNews(null);
+  };
 
-  const trendingNews = news.filter(n => n.trending).slice(0, 3);
+  const openViewModal = (newsItem) => {
+    setViewingNews(newsItem);
+  };
+
+  const closeViewModal = () => {
+    setViewingNews(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-xl text-gray-600">Loading news...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Error Loading News</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-sm text-red-700 mb-4">
+            Check CORS settings. Make sure your backend at <code className="bg-red-100 px-2 py-1 rounded">http://localhost:8082</code> allows your frontend origin.
+          </p>
+          <button 
+            onClick={fetchNews}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-white shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  NewsPortal
-                </h1>
-                <p className="text-xs text-gray-500">Stay Informed, Stay Ahead</p>
-              </div>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-4">
-              {isLoggedIn ? (
-                <>
-                  <span className="text-sm text-gray-600">Welcome, <span className="font-semibold text-blue-600">{currentUser.name}</span></span>
-                  <button
-                    onClick={() => { setShowNewsModal(true); setEditingNews(null); setNewsForm({ title: '', content: '', category: 'Technology', image: '' }); }}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add News</span>
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all shadow-md"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { setShowAuthModal(true); setIsSignUp(false); }}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Login</span>
-                </button>
-              )}
-            </div>
-
-            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="md:hidden">
-              <Menu className="w-6 h-6 text-gray-700" />
-            </button>
+      <div className="bg-white shadow-md sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">News Portal</h1>
+            <p className="text-sm text-gray-500">Admin Dashboard</p>
           </div>
-
-          {showMobileMenu && (
-            <div className="md:hidden pb-4 space-y-2">
-              {isLoggedIn ? (
-                <>
-                  <button
-                    onClick={() => { setShowNewsModal(true); setEditingNews(null); }}
-                    className="w-full flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add News</span>
-                  </button>
-                  <button onClick={handleLogout} className="w-full bg-red-500 text-white px-4 py-2 rounded-lg">
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { setShowAuthModal(true); setIsSignUp(false); }}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg"
-                >
-                  Login
-                </button>
-              )}
-            </div>
-          )}
+          <button
+            onClick={openAddModal}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition shadow-lg"
+          >
+            <Plus size={20} />
+            Add News
+          </button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Filter */}
-        <div className="mb-8 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search news articles..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all shadow-sm"
-            />
+      {/* News Grid */}
+      <div className="max-w-7xl mx-auto p-6">
+        {news.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-lg shadow">
+            <p className="text-gray-500 text-lg">No news articles yet. Click "Add News" to create one!</p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {news.map((item) => (
+              <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
+                {/* Image */}
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                      {item.category}
+                    </span>
+                  </div>
+                  {/* Admin Actions Overlay */}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-yellow-600 rounded-lg transition shadow"
+                      title="Edit"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-red-600 rounded-lg transition shadow"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
 
-          <div className="flex flex-wrap gap-2">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedCategory === cat
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-                }`}
-              >
-                {cat}
-              </button>
+                {/* Content */}
+                <div className="p-5 flex-1 flex flex-col">
+                  <h2 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2 hover:text-blue-600 transition">
+                    {item.title}
+                  </h2>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-1">
+                    {item.desc}
+                  </p>
+                  
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                    <div className="flex items-center gap-1">
+                      <Calendar size={14} />
+                      <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Eye size={14} />
+                      <span>{item.view} views</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => openViewModal(item)}
+                    className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium"
+                  >
+                    Read More
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-
-        {/* Trending Section */}
-        {trendingNews.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center space-x-2 mb-4">
-              <TrendingUp className="w-6 h-6 text-orange-500" />
-              <h2 className="text-2xl font-bold text-gray-800">Trending Now</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {trendingNews.map(n => (
-                <div
-                  key={n.id}
-                  onClick={() => setSelectedNews(n)}
-                  className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-1"
-                >
-                  <div className="relative h-48">
-                    <img src={n.image} alt={n.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-3 left-3 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                      <TrendingUp className="w-3 h-3" />
-                      <span>Trending</span>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-800 line-clamp-2">{n.title}</h3>
-                    <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                      <span className="flex items-center space-x-1">
-                        <Eye className="w-3 h-3" />
-                        <span>{n.views}</span>
-                      </span>
-                      <span className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{n.date}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
+      </div>
 
-        {/* News Grid */}
-        <div className="mb-4">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Latest News</h2>
-          <p className="text-gray-600 mb-6">Found {filteredNews.length} articles</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredNews.map(n => (
-            <div key={n.id} className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1">
-              <div className="relative h-48">
-                <img src={n.image} alt={n.title} className="w-full h-full object-cover" />
-                <div className="absolute top-3 right-3 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                  <Tag className="w-3 h-3" />
-                  <span>{n.category}</span>
-                </div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-xl text-gray-800 mb-2 line-clamp-2">{n.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">{n.content}</p>
-                
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-xs text-gray-500">
-                    <p className="font-semibold text-gray-700">By {n.author}</p>
-                    <p className="flex items-center space-x-1 mt-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{n.date}</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-1 text-gray-500 text-xs">
-                    <Eye className="w-4 h-4" />
-                    <span>{n.views}</span>
-                  </div>
-                </div>
-
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setSelectedNews(n)}
-                    className="flex-1 flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>Read</span>
-                  </button>
-                  {isLoggedIn && (
-                    <>
-                      <button
-                        onClick={() => openEditModal(n)}
-                        className="flex items-center justify-center bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-all"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteNews(n.id)}
-                        className="flex items-center justify-center bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-all"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredNews.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No news articles found matching your criteria.</p>
-          </div>
-        )}
-      </main>
-
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
-            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="text-center mb-6">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
-              <p className="text-gray-500 mt-2">{isSignUp ? 'Join our news community' : 'Login to manage news'}</p>
-            </div>
-
-            <div className="space-y-4">
-              {isSignUp && (
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={authForm.name}
-                  onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
-                />
-              )}
-              <input
-                type="text"
-                placeholder="Username"
-                value={authForm.username}
-                onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={authForm.password}
-                onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
+      {/* View Modal */}
+      {viewingNews && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="relative h-64 overflow-hidden">
+              <img
+                src={viewingNews.imageUrl}
+                alt={viewingNews.title}
+                className="w-full h-full object-cover"
               />
               <button
-                onClick={isSignUp ? handleSignUp : handleLogin}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg"
+                onClick={closeViewModal}
+                className="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-gray-100 transition"
               >
-                {isSignUp ? 'Sign Up' : 'Login'}
+                <X size={24} />
               </button>
-            </div>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
-              </button>
-            </div>
-
-            {!isSignUp && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <p className="text-xs text-gray-600 font-semibold mb-2">Demo Credentials:</p>
-                <p className="text-xs text-gray-600">Admin: admin / admin123</p>
-                <p className="text-xs text-gray-600">Editor: editor / editor123</p>
+              <div className="absolute bottom-4 left-4">
+                <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                  {viewingNews.category}
+                </span>
               </div>
-            )}
+            </div>
+            <div className="p-8">
+              <h1 className="text-3xl font-bold text-gray-800 mb-4">{viewingNews.title}</h1>
+              <div className="flex items-center gap-4 text-sm text-gray-500 mb-6 pb-4 border-b">
+                <div className="flex items-center gap-1">
+                  <Calendar size={16} />
+                  <span>{new Date(viewingNews.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Eye size={16} />
+                  <span>{viewingNews.view} views</span>
+                </div>
+              </div>
+              <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
+                {viewingNews.content}
+              </p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* News Modal (Add/Edit) */}
-      {showNewsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 relative my-8">
-            <button onClick={() => { setShowNewsModal(false); setEditingNews(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <X className="w-6 h-6" />
-            </button>
-
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">{editingNews ? 'Edit News' : 'Add New News'}</h2>
-
-            <div className="space-y-4">
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {editingNews ? 'Edit News' : 'Add New News'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title *
+                </label>
                 <input
                   type="text"
-                  value={newsForm.title}
-                  onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter news title"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-                <select
-                  value={newsForm.category}
-                  onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
-                >
-                  {categories.filter(c => c !== 'All').map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category *
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g. Technology, Sports, Politics"
+                />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Image URL *
+                </label>
                 <input
                   type="url"
-                  value={newsForm.image}
-                  onChange={(e) => setNewsForm({ ...newsForm, image: e.target.value })}
+                  name="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="https://example.com/image.jpg"
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Content</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (Preview) *
+                </label>
                 <textarea
-                  value={newsForm.content}
-                  onChange={(e) => setNewsForm({ ...newsForm, content: e.target.value })}
-                  rows="6"
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all resize-none"
+                  name="desc"
+                  value={formData.desc}
+                  onChange={handleInputChange}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Short description shown on cards"
                 />
               </div>
-
-              <button
-                onClick={editingNews ? handleEditNews : handleAddNews}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg"
-              >
-                {editingNews ? 'Update News' : 'Publish News'}
-              </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Content *
+                </label>
+                <textarea
+                  name="content"
+                  value={formData.content}
+                  onChange={handleInputChange}
+                  rows={6}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Full article content"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition"
+                >
+                  {editingNews ? 'Update News' : 'Create News'}
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-medium transition"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* View News Modal */}
-      {selectedNews && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8 relative">
-            <button onClick={() => setSelectedNews(null)} className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 z-10">
-              <X className="w-6 h-6 text-gray-700" />
-            </button>
-
-            <img src={selectedNews.image} alt={selectedNews.title} className="w-full h-96 object-cover rounded-t-2xl" />
-
-            <div className="p-8">
-              <div className="flex items-center space-x-3 mb-4">
-                <span className="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm font-semibold flex items-center space-x-1">
-                  <Tag className="w-4 h-4" />
-                  <span>{selectedNews.category}</span>
-                </span>
-                {selectedNews.trending && (
-                  <span className="bg-orange-100 text-orange-700 px-4 py-1 rounded-full text-sm font-semibold flex items-center space-x-1">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>Trending</span>
-                  </span>
-                )}
-              </div>
-
-              <h1 className="text-4xl font-bold text-gray-800 mb-4">{selectedNews.title}</h1>
-
-              <div className="flex items-center space-x-6 text-sm text-gray-500 mb-6 pb-6 border-b">
-                <div className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span className="font-semibold text-gray-700">{selectedNews.author}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4" />
-                  <span>{selectedNews.date}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Eye className="w-4 h-4" />
-                  <span>{selectedNews.views} views</span>
-                </div>
-              </div>
-
-              <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">{selectedNews.content}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-slate-800 to-slate-900 text-white py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-lg font-semibold mb-2">News Management Portal</p>
-          <p className="text-gray-400 text-sm">College Project - Web Development Summer Internship 2025</p>
-          <p className="text-gray-500 text-xs mt-4">© 2025 All Rights Reserved</p>
-        </div>
-      </footer>
     </div>
   );
-};
-
-export default NewsPortal;
+}

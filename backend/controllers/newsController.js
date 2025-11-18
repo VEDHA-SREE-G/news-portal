@@ -15,7 +15,7 @@ const addNews = async(req,res) => {
 
 const getAllNews = async(req, res) => {
     let id = req.params.id
-    let news = await News.findOne({where : {id : id}})
+    let news = await News.findAll()
     res.status(200).send(news)
 }
 
